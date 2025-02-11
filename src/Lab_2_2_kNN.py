@@ -18,8 +18,7 @@ def minkowski_distance(a, b, p=2):
     Returns:
         float: Minkowski distance between arrays a and b.
     """
-
-    # TODO
+    return np.power(np.sum(np.power(np.abs(a - b), p)), 1/p)
 
 
 # k-Nearest Neighbors Model
@@ -50,7 +49,23 @@ class knn:
             k (int, optional): Number of neighbors to use. Defaults to 5.
             p (int, optional): The degree of the Minkowski distance. Defaults to 2.
         """
-        # TODO
+        # Check X and Y have same sizes
+        if len(X_train) != len(y_train):
+            raise ValueError("Length of X_train and y_train must be equal.")
+        
+        # Check k, p are positive integers
+        if not isinstance(k, int) or k <= 0:
+            raise ValueError("k and p must be positive integers.")
+        
+        if not isinstance(p, int) or p <= 0:
+            raise ValueError("k and p must be positive integers.")
+        
+        # If everything is correct, set all values
+        self.x_train = X_train
+        self.y_train = y_train
+        self.p = p
+        self.k = k
+        
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -62,7 +77,15 @@ class knn:
         Returns:
             np.ndarray: Predicted class labels.
         """
-        # TODO
+        predicted = [
+            self.most_common_label(
+                self.y_train[
+                    self.get_k_nearest_neighbors(self.compute_distances(x))
+                ]
+            ) for x in X]
+        
+        return np.array(predicted)
+
 
     def predict_proba(self, X):
         """
@@ -76,8 +99,26 @@ class knn:
 
         Returns:
             np.ndarray: Predicted class probabilities.
+        """ 
+
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:
         """
-        # TODO
+        Predict the class probabilities for the provided data.
+
+        Args:
+            X (np.ndarray): Data samples to predict their probabilities.
+
+        Returns:
+            np.ndarray: Predicted class probabilities with shape (num_samples, num_classes).
+        """
+        # Get unique class labels
+        all_labels = np.unique(self.y_train)
+        labels_prob = np.zeros((X.shape[0], len(all_labels)))  
+        for i, x in enumerate(X): 
+            k_nearest = self.get_k_nearest_neighbors(self.compute_distances(x))
+            k_labels = self.y_train[k_nearest]
+            labels_prob[i] = [np.sum(k_labels == label) / self.k for label in all_labels]
+        return labels_prob
 
     def compute_distances(self, point: np.ndarray) -> np.ndarray:
         """Compute distance from a point to every point in the training dataset
@@ -88,7 +129,7 @@ class knn:
         Returns:
             np.ndarray: distance from point to each point in the training dataset.
         """
-        # TODO
+        return np.array([minkowski_distance(a=point, b=training_point, p=self.p) for training_point in self.x_train])
 
     def get_k_nearest_neighbors(self, distances: np.ndarray) -> np.ndarray:
         """Get the k nearest neighbors indices given the distances matrix from a point.
@@ -102,7 +143,7 @@ class knn:
         Hint:
             You might want to check the np.argsort function.
         """
-        # TODO
+        return np.argsort(distances)[:self.k]
 
     def most_common_label(self, knn_labels: np.ndarray) -> int:
         """Obtain the most common label from the labels of the k nearest neighbors
@@ -113,7 +154,8 @@ class knn:
         Returns:
             int: most common label
         """
-        # TODO
+        counts = np.bincount(knn_labels)
+        return np.argmax(counts)
 
     def __str__(self):
         """
@@ -196,15 +238,15 @@ def plot_2Dmodel_predictions(X, y, model, grid_points_n):
 def evaluate_classification_metrics(y_true, y_pred, positive_label):
     """
     Calculate various evaluation metrics for a classification model.
-
+ 
     Args:
         y_true (array-like): True labels of the data.
         positive_label: The label considered as the positive class.
         y_pred (array-like): Predicted labels by the model.
-
+ 
     Returns:
         dict: A dictionary containing various evaluation metrics.
-
+ 
     Metrics Calculated:
         - Confusion Matrix: [TN, FP, FN, TP]
         - Accuracy: (TP + TN) / (TP + TN + FP + FN)
@@ -216,25 +258,36 @@ def evaluate_classification_metrics(y_true, y_pred, positive_label):
     # Map string labels to 0 or 1
     y_true_mapped = np.array([1 if label == positive_label else 0 for label in y_true])
     y_pred_mapped = np.array([1 if label == positive_label else 0 for label in y_pred])
-
+    tp,fp,tn,fn = 0,0,0,0
+    for true_label, pred_label in zip(y_true_mapped, y_pred_mapped):
+        if true_label == 1 and pred_label == 1:
+            tp += 1
+        elif true_label == 1 and pred_label == 0:
+            fn += 1
+        elif true_label == 0 and pred_label == 1:
+            fp += 1
+        elif true_label == 0 and pred_label == 0:
+            tn += 1
+ 
     # Confusion Matrix
-    # TODO
-
+    conf_matrix = np.array([[tp, fn],[fp, tn]])
+   
     # Accuracy
-    # TODO
-
+    total = tp+tn+fp+fn
+    accuracy = (tp+tn)/total if total > 0 else 0
+ 
     # Precision
-    # TODO
-
+    precision = tp/(tp+fp) if (tp+fp) > 0 else 0
+ 
     # Recall (Sensitivity)
-    # TODO
-
+    recall = tp/(tp+fn) if (tp+fn) > 0 else 0
+ 
     # Specificity
-    # TODO
-
+    specificity = tn/(tn+fp) if (tn+fp) > 0 else 0
+ 
     # F1 Score
-    # TODO
-
+    f1 = (2*precision*recall)/(precision+recall) if (precision+recall) > 0 else 0
+ 
     return {
         "Confusion Matrix": [tn, fp, fn, tp],
         "Accuracy": accuracy,
@@ -269,7 +322,7 @@ def plot_calibration_curve(y_true, y_probs, positive_label, n_bins=10):
             - "true_proportions": Array of the fraction of positives in each bin
 
     """
-    # TODO
+    bin_centers = np.linspace(0,1,n_bins)
     return {"bin_centers": bin_centers, "true_proportions": true_proportions}
 
 
