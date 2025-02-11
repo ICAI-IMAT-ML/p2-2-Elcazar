@@ -298,7 +298,6 @@ def evaluate_classification_metrics(y_true, y_pred, positive_label):
     }
 
 
-
 def plot_calibration_curve(y_true, y_probs, positive_label, n_bins=10):
     """
     Plot a calibration curve to evaluate the accuracy of predicted probabilities.
@@ -322,7 +321,29 @@ def plot_calibration_curve(y_true, y_probs, positive_label, n_bins=10):
             - "true_proportions": Array of the fraction of positives in each bin
 
     """
-    bin_centers = np.linspace(0,1,n_bins)
+    bin_limits = np.linspace(0, 1, n_bins + 1) 
+    bin_centers = (bin_limits[:-1] + bin_limits[1:]) / 2  
+    true_proportions = np.zeros(n_bins)
+    mean_predicted_probs = np.zeros(n_bins)
+
+    for i in range(n_bins):
+        bin_mask = (y_probs >= bin_limits[i]) & (y_probs < bin_limits[i+1])
+        
+        if np.any(bin_mask):  
+            y_bin = y_true[bin_mask]
+            mean_predicted_probs[i] = np.mean(y_probs[bin_mask]) 
+            true_proportion = np.size(y_bin[y_bin==positive_label])
+            true_proportions[i] = true_proportion / np.size(y_bin)
+
+    plt.figure(figsize=(6, 6))
+    sns.lineplot(x=bin_centers, y=true_proportions, marker="o", linestyle="-", label="Modelo")
+    plt.xlabel("Media de probabilidades predichas")
+    plt.ylabel("Proporción real de positivos")
+    plt.title("Diagrama de calibración")
+    plt.legend()
+    plt.show()
+    
+
     return {"bin_centers": bin_centers, "true_proportions": true_proportions}
 
 
@@ -352,7 +373,27 @@ def plot_probability_histograms(y_true, y_probs, positive_label, n_bins=10):
                 Array of predicted probabilities for the negative class.
 
     """
-    # TODO
+    y_true_mapped = (y_true == positive_label)
+
+    probs_positive = y_probs[y_true_mapped == True]
+    probs_negative = y_probs[y_true_mapped == False]
+    bin_limits = np.linspace(0, 1, n_bins + 1)
+
+    plt.figure(figsize=(8, 5))
+    plt.hist(probs_positive, bins=bin_limits, label="1")
+    plt.xlabel("Probabilidades para la clase positiva")
+    plt.ylabel("Frecuencia")
+    plt.title("Distribución de Probabilidades por Clase")
+    plt.legend()
+    plt.show()
+
+    plt.figure(figsize=(8, 5))
+    plt.hist(probs_negative, bins=bin_limits, label="0")
+    plt.xlabel("Probabilidades para la clase positiva")
+    plt.ylabel("Frecuencia")
+    plt.title("Distribución de Probabilidades por Clase")
+    plt.legend()
+    plt.show()
 
     return {
         "array_passed_to_histogram_of_positive_class": y_probs[y_true_mapped == 1],
@@ -382,5 +423,27 @@ def plot_roc_curve(y_true, y_probs, positive_label):
             - "tpr": Array of True Positive Rates for each threshold.
 
     """
-    # TODO
+    thresholds = np.linspace(0,1,11)
+    fpr = np.zeros(np.size(thresholds))
+    tpr = np.zeros(np.size(thresholds))
+    
+    for i, threshold in enumerate(thresholds):
+        y_pred = (y_probs >= threshold).astype(int)
+        tp = np.sum((y_true == positive_label) & (y_pred == positive_label))
+        fp = np.sum((y_true != positive_label) & (y_pred == positive_label))
+        fn = np.sum((y_true == positive_label) & (y_pred != positive_label))
+        tn = np.sum((y_true != positive_label) & (y_pred != positive_label))
+
+        tpr[i] = tp / (tp + fn) if tp + fn != 0 else 0
+        fpr[i] = fp / (fp + tn) if fp + tn != 0 else 0
+    
+    plt.figure(figsize=(8, 5))
+    sns.lineplot(x=fpr, y=tpr, marker="o", linestyle="-", label="Modelo")
+
+    plt.xlabel("fpr")
+    plt.ylabel("tpr")
+    plt.title("Curva ROC")
+    plt.legend()
+    plt.show()
+
     return {"fpr": np.array(fpr), "tpr": np.array(tpr)}
